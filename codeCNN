@@ -1,0 +1,55 @@
+import os
+import cv2
+import numpy as np
+DATASET_PATH = "/content/face/FACE_RAP001_K51"
+IMG_SIZE = 100
+X = []
+y = []
+people = os.listdir(DATASET_PATH)
+print("Classes:", people)
+for person in people:
+    person_path = os.path.join(DATASET_PATH, person)
+    if not os.path.isdir(person_path):
+        continue
+    for image_name in os.listdir(person_path):
+        image_path = os.path.join(person_path, image_name)
+        img = cv2.imread(image_path)
+        if img is None:
+            continue
+        img = cv2.resize(img, (IMG_SIZE, IMG_SIZE))
+        X.append(img)
+        y.append(person)
+from sklearn.preprocessing import LabelEncoder
+from tensorflow.keras.utils import to_categorical
+X = np.array(X) / 255.0
+y = np.array(y)
+encoder = LabelEncoder()
+y_encoded = encoder.fit_transform(y)
+y_categorical = to_categorical(y_encoded)
+print("Classes:", encoder.classes_)
+from sklearn.model_selection import train_test_spli
+X_train, X_test, y_train, y_test = train_test_split(X,y_categorical,test_size=0.2,random_state=42)
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import (Conv2D,MaxPooling2D,Flatten,Dense,Dropout)
+model = Sequential()
+model.add(Conv2D(32,(3,3),activation='relu',input_shape=(100,100,3)))
+model.add(MaxPooling2D((2,2)))
+model.add(Conv2D(64,(3,3),activation='relu'))
+model.add(MaxPooling2D((2,2)))
+model.add(Flatten())
+model.add(Dense(128, activation='relu'))
+model.add(Dropout(0.5))
+model.add(Dense(len(encoder.classes_),activation='softmax'))
+model.compile(optimizer='adam',loss='categorical_crossentropy', metrics=['accuracy'])
+history = model.fit(X_train,y_train,epochs=15,validation_data=(X_test, y_test))
+loss, accuracy = model.evaluate(X_test, y_test)
+print("Accuracy:", accuracy)
+model.save("face_cnn_model.h5")
+img = cv2.imread("/content/photo.jpg")
+img_resized = cv2.resize(img, (100,100))
+img_input = np.array(img_resized) / 255.0
+img_input = np.expand_dims(img_input, axis=0)
+prediction = model.predict(img_input)
+class_index = np.argmax(prediction)
+name = encoder.classes_[class_index]
+print("Người dự đoán:", name)
